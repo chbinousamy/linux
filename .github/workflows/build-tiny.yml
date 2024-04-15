@@ -1,0 +1,52 @@
+name: "Build Linux Tiny Kernel"
+
+on:
+  push:
+    branches: [ "main", "wb" ]
+  pull_request:
+    branches: [ "main", "wb" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    continue-on-error: true
+    strategy:
+      matrix:
+        arch: [amd64, arm, arm64]
+        #defconfig: [tinyconfig, defconfig, allnoconfig, allyesconfig, allmodconfig]
+        defconfig: [tinyconfig]
+        os: [ubuntu-latest]
+        
+    name: "kernel"
+    runs-on: ${{ matrix.os }}
+    steps:
+    
+      - name: "Add missing libraries"
+        run: sudo apt install libelf-dev
+        
+      - name: "run actions/checkout@v3"
+        uses: actions/checkout@v3
+          
+      - name: "Clean"
+        run: make mrproper
+        
+      - name: "Configure"
+        run: |
+          make ${{ matrix.defconfig }}
+          
+      - name: "Show generated configuration"
+        run: |
+          echo "cat /.config"
+          cat .config
+      
+      - name: "Disable cert"
+        run: |
+          /home/runner/work/linux/linux/scripts/config --set-val SYSTEM_TRUSTED_KEYS ""
+          /home/runner/work/linux/linux/scripts/config --set-val SYSTEM_REVOCATION_KEYS ""
+          cat .config
+        
+      - name: "Compile Kernel"
+        run: make
+        
+      - name: "Install new kernel"
+        run: sudo make install
